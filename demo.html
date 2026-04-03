@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ZeroTree ◈ — Skill Progression Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --zt-bg: #060610;
+    --zt-surface: #0a0a1a;
+    --zt-border: rgba(0,212,255,0.18);
+    --zt-cyan: #00d4ff;
+    --zt-green: #4af7a0;
+    --zt-amber: #f59e0b;
+    --zt-purple: #a78bfa;
+    --zt-orange: #f97316;
+    --zt-red: #f87171;
+    --zt-gold: #ffd700;
+    --zt-text: #e2e8f0;
+    --zt-muted: #404060;
+    --font-mono: 'Share Tech Mono', 'Courier New', monospace;
+    --font-display: 'Orbitron', monospace;
+  }
+
+  html, body { height: 100%; background: var(--zt-bg); color: var(--zt-text); font-family: var(--font-mono); overflow: hidden; }
+
+  /* Starfield background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 80%, rgba(255,255,255,0.35) 0%, transparent 100%),
+      radial-gradient(1px 1px at 10% 60%, rgba(255,255,255,0.25) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 55%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 35% 15%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 65% 45%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(2px 2px at 45% 65%, rgba(0,212,255,0.15) 0%, transparent 100%),
+      radial-gradient(2px 2px at 75% 85%, rgba(164,139,250,0.1) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Scan-line overlay */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  #app {
+    position: fixed; inset: 0; z-index: 1;
+    display: flex; flex-direction: column;
+  }
+
+  /* ── Top Bar ── */
+  #topbar {
+    display: flex; align-items: center;
+    padding: 10px 24px;
+    background: rgba(6,6,16,0.97);
+    border-bottom: 1px solid var(--zt-border);
+    gap: 18px;
+    flex-shrink: 0;
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 16px; font-weight: 900;
+    color: var(--zt-amber);
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px rgba(245,158,11,0.6);
+    white-space: nowrap;
+  }
+
+  .logo span { color: var(--zt-cyan); }
+
+  .divider { width: 1px; height: 28px; background: rgba(255,255,255,0.08); flex-shrink: 0; }
+
+  /* Stat row */
+  .stat-row { display: flex; gap: 14px; align-items: center; }
+  .stat-chip {
+    display: flex; flex-direction: column; align-items: center;
+    min-width: 36px;
+  }
+  .stat-value { font-size: 14px; font-weight: bold; line-height: 1; }
+  .stat-label { font-size: 8px; color: var(--zt-muted); letter-spacing: 1px; margin-top: 2px; }
+
+  .spacer { flex: 1; }
+
+  .pts-display {
+    font-family: var(--font-display);
+    font-size: 18px; font-weight: 700;
+    color: var(--zt-green);
+    text-shadow: 0 0 12px rgba(74,247,160,0.4);
+    white-space: nowrap;
+  }
+  .pts-display small { font-size: 9px; color: var(--zt-muted); font-family: var(--font-mono); font-weight: normal; letter-spacing: 1px; }
+
+  /* Buttons */
+  .btn {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 1.5px;
+    transition: all 0.15s;
+    background: transparent;
+    white-space: nowrap;
+  }
+  .btn-grant { border-color: rgba(255,215,0,0.4); color: var(--zt-gold); }
+  .btn-grant:hover { background: rgba(255,215,0,0.12); border-color: var(--zt-gold); box-shadow: 0 0 12px rgba(255,215,0,0.2); }
+  .btn-respec { border-color: rgba(249,115,22,0.4); color: var(--zt-orange); }
+  .btn-respec:hover { background: rgba(249,115,22,0.12); border-color: var(--zt-orange); }
+  .btn-respec:disabled { border-color: #222; color: #333; cursor: default; }
+  .btn-respec:disabled:hover { background: transparent; box-shadow: none; }
+  .btn-seed { border-color: rgba(164,139,250,0.4); color: var(--zt-purple); }
+  .btn-seed:hover { background: rgba(164,139,250,0.12); border-color: var(--zt-purple); }
+
+  /* ── Canvas area ── */
+  #canvas-wrap {
+    flex: 1; position: relative; overflow: hidden;
+  }
+
+  #tree-canvas {
+    width: 100%; height: 100%; display: block;
+    cursor: default;
+  }
+
+  #hint {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.1);
+    font-size: 9px; letter-spacing: 3px;
+    pointer-events: none;
+    font-family: var(--font-display);
+  }
+
+  /* ── Notifications ── */
+  #notifs {
+    position: absolute; top: 40px; right: 18px;
+    display: flex; flex-direction: column; gap: 6px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .notif {
+    padding: 7px 16px;
+    background: rgba(6,6,16,0.95);
+    border-radius: 4px;
+    border-left-width: 3px; border-left-style: solid;
+    border-top: 1px solid; border-right: 1px solid; border-bottom: 1px solid;
+    font-size: 11px; letter-spacing: 0.5px;
+    animation: slideIn 0.25s cubic-bezier(0.34,1.56,0.64,1) both;
+    white-space: nowrap;
+  }
+  @keyframes slideIn {
+    from { opacity:0; transform: translateX(20px); }
+    to   { opacity:1; transform: translateX(0); }
+  }
+  @keyframes fadeOut {
+    from { opacity:1; } to { opacity:0; transform: translateX(10px); }
+  }
+
+  /* ── Respec Modal ── */
+  #respec-modal {
+    position: absolute; inset: 0; z-index: 20;
+    background: rgba(0,0,0,0.75);
+    display: none; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  #respec-modal.open { display: flex; }
+  .modal-box {
+    background: var(--zt-surface);
+    border: 1px solid rgba(249,115,22,0.5);
+    border-radius: 8px;
+    padding: 32px 40px;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(249,115,22,0.12), 0 0 120px rgba(0,0,0,0.8);
+    max-width: 360px;
+    animation: modalIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes modalIn { from { opacity:0; transform:scale(0.85); } to { opacity:1; transform:scale(1); } }
+  .modal-title { font-family: var(--font-display); color: var(--zt-orange); font-size: 20px; letter-spacing: 4px; margin-bottom: 14px; }
+  .modal-body { color: var(--zt-muted); font-size: 12px; line-height: 1.8; margin-bottom: 24px; }
+  .modal-cost { color: var(--zt-red); font-size: 13px; margin-bottom: 8px; }
+  .modal-cost strong { color: #fff; }
+  .modal-btns { display: flex; gap: 12px; justify-content: center; }
+
+  /* ── Detail Panel ── */
+  #detail-panel {
+    position: relative; flex-shrink: 0;
+    height: 0; overflow: hidden;
+    transition: height 0.22s cubic-bezier(0.4,0,0.2,1);
+    background: rgba(6,6,16,0.98);
+    border-top: 1px solid transparent;
+  }
+  #detail-panel.open {
+    height: 110px;
+    border-top-color: var(--panel-accent-color, rgba(0,212,255,0.2));
+  }
+  .panel-inner {
+    display: flex; align-items: center;
+    height: 110px; padding: 0 28px; gap: 22px;
+  }
+  .panel-icon {
+    width: 50px; height: 50px; border-radius: 8px;
+    border: 2px solid; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 24px; flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .panel-info { flex: 1; min-width: 0; }
+  .panel-name {
+    font-family: var(--font-display);
+    font-size: 13px; letter-spacing: 2px;
+    color: #fff; margin-bottom: 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .panel-tags { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .panel-tag {
+    font-size: 8px; padding: 1px 7px; border-radius: 3px;
+    border: 1px solid; letter-spacing: 1.5px;
+  }
+  .panel-desc { color: var(--zt-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .panel-stat { color: var(--zt-green); font-size: 10px; margin-top: 3px; }
+
+  .panel-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+  .panel-cost { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+  .panel-cost small { font-size: 9px; color: var(--zt-muted); font-family: var(--font-mono); font-weight: normal; }
+  .unlock-status { font-size: 10px; letter-spacing: 1px; }
+  .unlock-reason { font-size: 9px; color: #553333; text-align: right; max-width: 130px; line-height: 1.4; }
+
+  /* ── Minimap ── */
+  #minimap {
+    position: fixed; bottom: 20px; right: 20px;
+    width: 136px; padding: 10px 13px;
+    background: rgba(6,6,16,0.94);
+    border: 1px solid var(--zt-border);
+    border-radius: 6px; z-index: 999;
+    cursor: pointer;
+    box-shadow: 0 0 24px rgba(0,212,255,0.08);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  #minimap:hover { border-color: rgba(0,212,255,0.6); box-shadow: 0 0 24px rgba(0,212,255,0.2); }
+  .mini-title { font-family: var(--font-display); color: var(--zt-amber); font-size: 9px; letter-spacing: 3px; margin-bottom: 8px; }
+  .mini-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .mini-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+  .mini-fill { height: 100%; border-radius: 2px; transition: width 0.35s cubic-bezier(0.4,0,0.2,1); }
+  .mini-count { font-size: 8px; color: var(--zt-muted); width: 26px; text-align: right; }
+  .mini-pts { color: var(--zt-green); font-size: 11px; text-align: right; margin-top: 7px; }
+
+  /* ── Seed strip ── */
+  #seed-strip {
+    position: absolute; bottom: 12px; left: 16px;
+    font-size: 9px; color: rgba(255,255,255,0.08);
+    letter-spacing: 2px; pointer-events: none;
+    font-family: var(--font-display);
+  }
+
+  /* ── Legend ── */
+  #legend {
+    position: absolute; top: 12px; left: 16px;
+    display: flex; flex-direction: column; gap: 5px;
+    pointer-events: none;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 9px; color: rgba(255,255,255,0.35);
+    letter-spacing: 1px;
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 1.5px solid;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 6px;
+  }
+
+  /* scrollbar none */
+  ::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Top Bar -->
+  <div id="topbar">
+    <div class="logo">◈ ZERO<span>TREE</span></div>
+    <div class="divider"></div>
+    <div class="stat-row" id="stat-row"></div>
+    <div class="spacer"></div>
+    <div class="pts-display" id="pts-display">0 <small>SKILL PTS</small></div>
+    <button class="btn btn-grant" id="btn-grant">+10 PTS</button>
+    <button class="btn btn-respec" id="btn-respec" disabled>RESPEC</button>
+    <button class="btn btn-seed" id="btn-seed">NEW SEED</button>
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvas-wrap">
+    <canvas id="tree-canvas"></canvas>
+    <div id="hint">CLICK TO SELECT · CLICK AGAIN TO UNLOCK</div>
+    <div id="notifs"></div>
+    <div id="seed-strip" id="seed-strip"></div>
+
+    <!-- Legend -->
+    <div id="legend">
+      <div class="legend-item"><div class="legend-dot" style="border-color:#ffd700;color:#ffd700;">★</div>ROOT</div>
+      <div class="legend-item"><div class="legend-dot" style="border-color:#00d4ff;background:rgba(0,212,255,0.2);">◉</div>UNLOCKED</div>
+      <div class="legend-item"><div class="legend-dot" style="border-color:#4af7a0;border-style:dashed;">◈</div>AVAILABLE</div>
+      <div class="legend-item"><div class="legend-dot" style="border-color:#2a2a4a;">○</div>LOCKED</div>
+      <div class="legend-item"><div class="legend-dot" style="border-color:#f97316;width:14px;height:14px;">◆</div>KEYSTONE</div>
+    </div>
+
+    <!-- Respec modal -->
+    <div id="respec-modal">
+      <div class="modal-box">
+        <div class="modal-title">⚠ RESPEC</div>
+        <div class="modal-body">All unlocked skills will be reset.<br>Skill points are refunded minus a 30% tax.</div>
+        <div class="modal-cost">Tax: <strong id="respec-tax-amt">0</strong> skill points</div>
+        <div class="modal-btns">
+          <button class="btn btn-respec" id="btn-respec-confirm">CONFIRM RESPEC</button>
+          <button class="btn" style="border-color:#334;color:#666;" id="btn-respec-cancel">CANCEL</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail panel -->
+  <div id="detail-panel">
+    <div class="panel-inner">
+      <div class="panel-icon" id="panel-icon"></div>
+      <div class="panel-info">
+        <div class="panel-name" id="panel-name"></div>
+        <div class="panel-tags" id="panel-tags"></div>
+        <div class="panel-desc" id="panel-desc"></div>
+        <div class="panel-stat" id="panel-stat"></div>
+      </div>
+      <div class="panel-actions">
+        <div class="panel-cost" id="panel-cost"></div>
+        <div class="unlock-status" id="panel-status"></div>
+        <button class="btn" id="btn-unlock" style="display:none;"></button>
+        <div class="unlock-reason" id="panel-reason"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Minimap -->
+<div id="minimap" title="Open skill tree">
+  <div class="mini-title">◈ ZEROTREE</div>
+  <div id="mini-tiers"></div>
+  <div class="mini-pts" id="mini-pts"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  ZEROFAMILY HASH ENGINE
+// ═══════════════════════════════════════════════════════
+
+function positionHash(col, row, z, salt) {
+  let h = ((salt ^ 0x811c9dc5) >>> 0);
+  const vals = [col&0xFF,(col>>8)&0xFF,row&0xFF,(row>>8)&0xFF,z&0xFF];
+  for (const v of vals) { h ^= v; h = (Math.imul(h,0x01000193)>>>0); }
+  return h >>> 0;
+}
+
+function pairHash(ca, ra, cb, rb, salt) {
+  const pairs = [[ca,ra],[cb,rb]].sort((x,y)=>x[0]!==y[0]?x[0]-y[0]:x[1]-y[1]);
+  let h = ((salt ^ 0x811c9dc5) >>> 0);
+  for (const [c,r] of pairs) {
+    for (const v of [c&0xFF,(c>>8)&0xFF,r&0xFF,(r>>8)&0xFF]) { h^=v; h=(Math.imul(h,0x01000193)>>>0); }
+  }
+  return h >>> 0;
+}
+
+const hashFloat = h => (h>>>0)/0x100000000;
+
+function edgeExists(ca, ra, cb, rb, seed) {
+  if (Math.abs(ra-rb)!==1||Math.abs(ca-cb)>2) return false;
+  return hashFloat(pairHash(ca,ra,cb,rb,seed)) > 0.52;
+}
+
+// ═══════════════════════════════════════════════════════
+//  MOCK CONFIGURATION
+// ═══════════════════════════════════════════════════════
+
+const STAT_NAMES = ["Strength","Agility","Intellect","Vitality","Luck"];
+const STAT_RANGES = { Strength:[2,15], Agility:[2,12], Intellect:[2,18], Vitality:[3,20], Luck:[1,10] };
+const STAT_COLORS = { Strength:"#f87171", Agility:"#4af7a0", Intellect:"#60a5fa", Vitality:"#a78bfa", Luck:"#f59e0b" };
+
+const ABILITY_POOL = [
+  { id:"storm-surge",  name:"Storm Surge",   type:"ACTIVE",  desc:"Radial burst dealing 140% Agility damage to all nearby enemies." },
+  { id:"iron-skin",    name:"Iron Skin",      type:"PASSIVE", desc:"Permanently reduces all incoming damage by 12%." },
+  { id:"void-step",    name:"Void Step",      type:"ACTIVE",  desc:"Teleport 8 units in any direction, leaving a shadow decoy." },
+  { id:"blood-pact",   name:"Blood Pact",     type:"PASSIVE", desc:"Each kill restores 3% maximum Vitality instantly." },
+  { id:"mind-spike",   name:"Mind Spike",     type:"ACTIVE",  desc:"Intellect-scaled psychic lance with 25% stun chance." },
+  { id:"fortunes-eye", name:"Fortune's Eye",  type:"PASSIVE", desc:"Luck contributes 50% of its value to all crit calculations." },
+  { id:"arc-chain",    name:"Arc Chain",      type:"ACTIVE",  desc:"Lightning leaps between up to 5 enemies, dealing 80% Intellect each." },
+  { id:"phantom-step", name:"Phantom Step",   type:"PASSIVE", desc:"20% chance to dodge any attack. Triggers once per second maximum." },
+];
+
+const NODE_TYPES = ["STAT","PASSIVE","ACTIVE","STAT","KEYSTONE","STAT","PASSIVE","STAT"];
+const TYPE_GLYPHS = { STAT:"Σ", PASSIVE:"⟳", ACTIVE:"⚡", KEYSTONE:"◆" };
+const TYPE_COLORS = { STAT:"#4af7a0", PASSIVE:"#a78bfa", ACTIVE:"#f59e0b", KEYSTONE:"#f97316" };
+const COLS = 9, ROWS = 7;
+
+// ═══════════════════════════════════════════════════════
+//  TREE GENERATION
+// ═══════════════════════════════════════════════════════
+
+let TREE_SEED = 0xDEADBEEF;
+
+function generateTree(seed) {
+  const nodes = [], centerCol = Math.floor(COLS/2);
+  for (let row=0; row<ROWS; row++) {
+    for (let col=0; col<COLS; col++) {
+      const h = positionHash(col,row,0,seed);
+      let type = NODE_TYPES[h%8];
+      if (row<5 && type==="KEYSTONE") type="STAT";
+      const statIdx = positionHash(col,row,3,seed) % STAT_NAMES.length;
+      const stat = STAT_NAMES[statIdx];
+      const range = STAT_RANGES[stat];
+      const mag = Math.round(range[0]+hashFloat(positionHash(col,row,1,seed))*(range[1]-range[0]));
+      const isRoot = col===centerCol && row===0;
+      const cost = isRoot ? 0 : 5+row*3+(positionHash(col,row,4,seed)%5);
+      let ability = null;
+      if ((type==="ACTIVE"||type==="PASSIVE") && ABILITY_POOL.length>0)
+        ability = ABILITY_POOL[positionHash(col,row,2,seed)%ABILITY_POOL.length];
+      nodes.push({ id:`${col}:${row}`, col, row, tier:row,
+        type: isRoot?"STAT":type, stat, mag, cost, ability,
+        isRoot, variant: positionHash(col,row,5,seed)%8 });
+    }
+  }
+  const edges = [], edgeSet = new Set();
+  for (let r=0; r<ROWS-1; r++) {
+    for (let c=0; c<COLS; c++) for (let nc=0; nc<COLS; nc++) {
+      if (Math.abs(c-nc)>2) continue;
+      if (edgeExists(c,r,nc,r+1,seed)) {
+        const k=`${c},${r},${nc},${r+1}`;
+        if (!edgeSet.has(k)) { edgeSet.add(k); edges.push({from:`${c}:${r}`,to:`${nc}:${r+1}`}); }
+      }
+    }
+    const tierEdges = edges.filter(e=>{ const [,fr]=e.from.split(":").map(Number),[,tr]=e.to.split(":").map(Number); return fr===r&&tr===r+1; });
+    if (!tierEdges.length) edges.push({from:`${centerCol}:${r}`,to:`${centerCol}:${r+1}`});
+  }
+  const nodeMap = new Map(nodes.map(n=>[n.id,n]));
+  return { nodes, edges, nodeMap };
+}
+
+// ═══════════════════════════════════════════════════════
+//  PLAYER STATE  (BigInt bitmask)
+// ═══════════════════════════════════════════════════════
+
+let tree = generateTree(TREE_SEED);
+let rootNode = tree.nodes.find(n=>n.isRoot);
+let rootIdx = BigInt(rootNode.col*ROWS+rootNode.row);
+
+let playerState = { mask: 1n<<rootIdx, points: 20, spent: 0 };
+let selectedId = null;
+
+function nodeIdx(n) { return n.col*ROWS+n.row; }
+function isUnlocked(n) { return (playerState.mask>>BigInt(nodeIdx(n))&1n)===1n; }
+
+function canUnlock(node) {
+  if (isUnlocked(node)) return {ok:false,reason:"Already unlocked"};
+  if (playerState.points<node.cost) return {ok:false,reason:`Need ${node.cost} pts (have ${playerState.points})`};
+  // prerequisite: any edge neighbour in tier-1 is unlocked
+  const prereqs = tree.edges.filter(e=>e.to===node.id).map(e=>tree.nodeMap.get(e.from)).filter(n=>n&&n.row===node.row-1);
+  if (!node.isRoot && !prereqs.some(n=>isUnlocked(n))) return {ok:false,reason:"Prerequisite not met"};
+  return {ok:true,reason:null};
+}
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS LAYOUT
+// ═══════════════════════════════════════════════════════
+
+let layout = new Map();
+
+function computeLayout() {
+  const canvas = document.getElementById("tree-canvas");
+  const w = canvas.width, h = canvas.height;
+  const padX=60, padTop=68, padBot=16;
+  const uw=w-padX*2, uh=h-padTop-padBot;
+  layout.clear();
+  for (const n of tree.nodes) {
+    const x = padX+(n.col/(COLS-1))*uw;
+    const y = h-padBot-(n.row/(ROWS-1))*uh;
+    const radius = n.type==="KEYSTONE"?19:n.isRoot?17:12;
+    layout.set(n.id,{x,y,radius});
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS RENDERER
+// ═══════════════════════════════════════════════════════
+
+let animTime = 0, hoveredId = null;
+
+function render(ctx) {
+  const w=ctx.canvas.width, h=ctx.canvas.height;
+
+  // bg
+  ctx.fillStyle="#060610"; ctx.fillRect(0,0,w,h);
+
+  // grid
+  ctx.strokeStyle="rgba(255,255,255,0.025)"; ctx.lineWidth=1;
+  for (let i=0;i<24;i++) {
+    ctx.beginPath();ctx.moveTo(i*w/24,0);ctx.lineTo(i*w/24,h);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,i*h/24);ctx.lineTo(w,i*h/24);ctx.stroke();
+  }
+
+  // ambient glow pools
+  const grd = ctx.createRadialGradient(w*0.5,h*0.5,0,w*0.5,h*0.5,w*0.6);
+  grd.addColorStop(0,"rgba(0,212,255,0.025)");
+  grd.addColorStop(1,"transparent");
+  ctx.fillStyle=grd; ctx.fillRect(0,0,w,h);
+
+  // edges
+  ctx.setLineDash([]);
+  for (const e of tree.edges) {
+    const a=layout.get(e.from),b=layout.get(e.to);
+    if(!a||!b) continue;
+    const nA=tree.nodeMap.get(e.from),nB=tree.nodeMap.get(e.to);
+    const both=isUnlocked(nA)&&isUnlocked(nB);
+    const one=isUnlocked(nA)||isUnlocked(nB);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+    if (both) {
+      ctx.strokeStyle="rgba(0,212,255,0.65)"; ctx.lineWidth=2;
+      ctx.shadowBlur=10; ctx.shadowColor="#00d4ff"; ctx.setLineDash([]);
+    } else if (one) {
+      ctx.strokeStyle="rgba(0,212,255,0.2)"; ctx.lineWidth=1.5; ctx.shadowBlur=0; ctx.setLineDash([4,5]);
+    } else {
+      ctx.strokeStyle="rgba(30,30,60,0.9)"; ctx.lineWidth=1; ctx.shadowBlur=0; ctx.setLineDash([2,6]);
+    }
+    ctx.stroke(); ctx.setLineDash([]); ctx.shadowBlur=0;
+  }
+
+  // nodes
+  for (const n of tree.nodes) {
+    const p=layout.get(n.id); if(!p) continue;
+    const unlocked=isUnlocked(n);
+    const isSel=n.id===selectedId;
+    const isHov=n.id===hoveredId;
+    const avail=!unlocked&&canUnlock(n).ok;
+    const color=n.isRoot?"#ffd700":TYPE_COLORS[n.type];
+
+    let r=p.radius;
+    if (unlocked&&!n.isRoot) r*=(1+Math.sin(animTime*0.002+n.col*0.8)*0.06);
+    if (isHov) r*=1.18;
+
+    // Keystone shimmer ring
+    if (n.type==="KEYSTONE") {
+      const angle=(animTime*0.0008)%(Math.PI*2);
+      const gk=ctx.createLinearGradient(
+        p.x+Math.cos(angle)*(r+4),p.y+Math.sin(angle)*(r+4),
+        p.x-Math.cos(angle)*(r+4),p.y-Math.sin(angle)*(r+4));
+      gk.addColorStop(0,"rgba(249,115,22,0.9)");
+      gk.addColorStop(0.5,"rgba(255,215,0,1)");
+      gk.addColorStop(1,"rgba(249,115,22,0.9)");
+      ctx.beginPath(); ctx.arc(p.x,p.y,r+5,0,Math.PI*2);
+      ctx.strokeStyle=gk; ctx.lineWidth=3;
+      ctx.shadowBlur=18; ctx.shadowColor="#f97316"; ctx.stroke(); ctx.shadowBlur=0;
+    }
+
+    // selected halo
+    if (isSel) {
+      ctx.beginPath(); ctx.arc(p.x,p.y,r+8,0,Math.PI*2);
+      ctx.strokeStyle="rgba(255,255,255,0.85)"; ctx.lineWidth=2;
+      ctx.shadowBlur=24; ctx.shadowColor="#fff"; ctx.stroke(); ctx.shadowBlur=0;
+    } else if (isHov && !isSel) {
+      ctx.beginPath(); ctx.arc(p.x,p.y,r+5,0,Math.PI*2);
+      ctx.strokeStyle=color+"55"; ctx.lineWidth=1.5; ctx.stroke();
+    }
+
+    // fill
+    ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2);
+    if (n.isRoot) {
+      const gf=ctx.createRadialGradient(p.x-r*.3,p.y-r*.3,0,p.x,p.y,r);
+      gf.addColorStop(0,"#fff7c0"); gf.addColorStop(1,"#a07800");
+      ctx.fillStyle=gf;
+    } else if (unlocked) {
+      const gf=ctx.createRadialGradient(p.x-r*.3,p.y-r*.3,0,p.x,p.y,r);
+      gf.addColorStop(0,color+"ff"); gf.addColorStop(1,color+"55");
+      ctx.fillStyle=gf;
+      ctx.shadowBlur=20; ctx.shadowColor=color;
+    } else if (avail) {
+      ctx.fillStyle="#0c0c1e"; ctx.shadowBlur=8; ctx.shadowColor=color;
+    } else {
+      ctx.fillStyle="#0a0a18";
+    }
+    ctx.fill(); ctx.shadowBlur=0;
+
+    // border
+    ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2);
+    if (n.isRoot) { ctx.strokeStyle="#ffd700"; ctx.lineWidth=2.5; ctx.setLineDash([]); }
+    else if (unlocked) { ctx.strokeStyle=color; ctx.lineWidth=2; ctx.setLineDash([]); }
+    else if (avail) { ctx.strokeStyle=color+"bb"; ctx.lineWidth=1.5; ctx.setLineDash([3,3]); }
+    else { ctx.strokeStyle="#1e1e3a"; ctx.lineWidth=1; ctx.setLineDash([]); }
+    ctx.stroke(); ctx.setLineDash([]);
+
+    // glyph
+    ctx.font=`bold ${n.type==="KEYSTONE"?15:11}px 'Share Tech Mono',monospace`;
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillStyle=n.isRoot?"#fffbe8":unlocked?"#ffffff":avail?color+"dd":"#2a2a4a";
+    ctx.fillText(n.isRoot?"★":TYPE_GLYPHS[n.type],p.x,p.y);
+  }
+
+  // tier labels (right side)
+  for (let r=0; r<ROWS; r++) {
+    const nodesInRow = tree.nodes.filter(n=>n.row===r);
+    if (!nodesInRow.length) continue;
+    const p = layout.get(nodesInRow[nodesInRow.length-1].id);
+    if (!p) continue;
+    ctx.font="9px 'Share Tech Mono',monospace";
+    ctx.textAlign="left"; ctx.textBaseline="middle";
+    ctx.fillStyle="rgba(255,255,255,0.12)";
+    ctx.fillText(`T${r}${r===6?" KEYSTONE":r===0?" ROOT":""}`, p.x+26, p.y);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  HIT TEST
+// ═══════════════════════════════════════════════════════
+
+function hitTest(clientX, clientY) {
+  const canvas=document.getElementById("tree-canvas");
+  const rect=canvas.getBoundingClientRect();
+  const x=clientX-rect.left, y=clientY-rect.top;
+  for (const n of tree.nodes) {
+    const p=layout.get(n.id); if(!p) continue;
+    const dx=x-p.x,dy=y-p.y;
+    if (Math.sqrt(dx*dx+dy*dy)<=p.radius+7) return n;
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════
+//  UI UPDATES
+// ═══════════════════════════════════════════════════════
+
+function computeStats() {
+  const totals={};
+  for (const s of STAT_NAMES) totals[s]=0;
+  for (const n of tree.nodes) if (isUnlocked(n)) totals[n.stat]=(totals[n.stat]||0)+n.mag;
+  return totals;
+}
+
+function updateHeader() {
+  const stats=computeStats();
+  const row=document.getElementById("stat-row");
+  row.innerHTML=STAT_NAMES.map(s=>`
+    <div class="stat-chip">
+      <div class="stat-value" style="color:${STAT_COLORS[s]}">+${stats[s]}</div>
+      <div class="stat-label">${s.slice(0,3).toUpperCase()}</div>
+    </div>
+  `).join('<div style="width:1px;height:20px;background:rgba(255,255,255,0.06)"></div>');
+  document.getElementById("pts-display").innerHTML=`${playerState.points} <small>SKILL PTS</small>`;
+  document.getElementById("btn-respec").disabled=playerState.spent===0;
+  document.getElementById("mini-pts").textContent=playerState.points+" pts";
+}
+
+function updateMinimap() {
+  const container=document.getElementById("mini-tiers");
+  const rows=[];
+  for (let r=ROWS-1;r>=0;r--) {
+    const tier=tree.nodes.filter(n=>n.row===r);
+    const unlocked=tier.filter(n=>isUnlocked(n)).length;
+    const pct=tier.length>0?unlocked/tier.length:0;
+    const color=pct===1?"#4af7a0":pct>0?"#00d4ff":"transparent";
+    rows.push(`<div class="mini-row">
+      <div class="mini-bar"><div class="mini-fill" style="width:${pct*100}%;background:${color}"></div></div>
+      <div class="mini-count">${unlocked}/${tier.length}</div>
+    </div>`);
+  }
+  container.innerHTML=rows.join("");
+}
+
+function updateDetailPanel(node) {
+  const panel=document.getElementById("detail-panel");
+  if (!node) { panel.classList.remove("open"); selectedId=null; return; }
+
+  const color=node.isRoot?"#ffd700":TYPE_COLORS[node.type];
+  panel.style.setProperty("--panel-accent-color",color+"44");
+  panel.classList.add("open");
+
+  const icon=document.getElementById("panel-icon");
+  icon.style.borderColor=color;
+  icon.style.color=color;
+  icon.style.background=color+"11";
+  icon.style.boxShadow=`0 0 18px ${color}44`;
+  icon.textContent=node.isRoot?"★":TYPE_GLYPHS[node.type];
+
+  document.getElementById("panel-name").textContent=node.ability?node.ability.name.toUpperCase():`${node.stat.toUpperCase()} NODE`;
+
+  const tagsEl=document.getElementById("panel-tags");
+  tagsEl.innerHTML=`
+    <span class="panel-tag" style="border-color:${color}88;color:${color}">${node.type}</span>
+    <span class="panel-tag" style="border-color:#334;color:#556">TIER ${node.tier}</span>
+    ${node.ability?`<span class="panel-tag" style="border-color:#334;color:#556">${node.ability.type}</span>`:""}
+  `;
+
+  document.getElementById("panel-desc").textContent=node.ability?node.ability.desc:`+${node.mag} ${node.stat} bonus`;
+  document.getElementById("panel-stat").textContent=node.ability?`+${node.mag} ${node.stat} (passive)`:""
+
+  // Cost
+  const costEl=document.getElementById("panel-cost");
+  if (node.isRoot) { costEl.innerHTML="FREE"; costEl.style.color="#4af7a0"; }
+  else { costEl.style.color=node.cost>playerState.points?"#f87171":"#4af7a0"; costEl.innerHTML=`${node.cost} <small>pts</small>`; }
+
+  const statusEl=document.getElementById("panel-status");
+  const reasonEl=document.getElementById("panel-reason");
+  const btnUnlock=document.getElementById("btn-unlock");
+  const unlocked=isUnlocked(node);
+
+  if (unlocked) {
+    statusEl.style.color="#4af7a0"; statusEl.textContent="✓ UNLOCKED";
+    btnUnlock.style.display="none"; reasonEl.textContent="";
+  } else if (node.isRoot) {
+    statusEl.style.color="#ffd700"; statusEl.textContent="★ ROOT NODE";
+    btnUnlock.style.display="none"; reasonEl.textContent="";
+  } else {
+    const {ok,reason}=canUnlock(node);
+    statusEl.textContent="";
+    if (ok) {
+      btnUnlock.style.display="block";
+      btnUnlock.textContent="UNLOCK";
+      btnUnlock.style.borderColor=color;
+      btnUnlock.style.color=color;
+      btnUnlock.style.background=color+"1a";
+      btnUnlock.onclick=()=>doUnlock(node);
+      reasonEl.textContent="";
+    } else {
+      btnUnlock.style.display="block";
+      btnUnlock.textContent="LOCKED";
+      btnUnlock.style.borderColor="#333"; btnUnlock.style.color="#444"; btnUnlock.style.background="transparent";
+      btnUnlock.onclick=null;
+      reasonEl.textContent=reason;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  NOTIFICATIONS
+// ═══════════════════════════════════════════════════════
+
+function notify(msg, color="#4af7a0") {
+  const el=document.createElement("div");
+  el.className="notif";
+  el.textContent=msg;
+  el.style.borderLeftColor=el.style.borderTopColor=el.style.borderRightColor=el.style.borderBottomColor=color+"55";
+  el.style.borderLeftColor=color;
+  el.style.color=color;
+  document.getElementById("notifs").appendChild(el);
+  setTimeout(()=>{ el.style.animation="fadeOut 0.3s ease forwards"; setTimeout(()=>el.remove(),300); },2200);
+}
+
+// ═══════════════════════════════════════════════════════
+//  ACTIONS
+// ═══════════════════════════════════════════════════════
+
+function doUnlock(node) {
+  const {ok,reason}=canUnlock(node);
+  if (!ok) { notify(reason,"#f87171"); return; }
+  playerState.mask |= (1n<<BigInt(nodeIdx(node)));
+  playerState.points-=node.cost;
+  playerState.spent+=node.cost;
+  updateDetailPanel(node);
+  updateHeader(); updateMinimap();
+  notify(node.ability?`⚡ ${node.ability.name} unlocked!`:`+${node.mag} ${node.stat}`, TYPE_COLORS[node.type]);
+}
+
+function doRespec() {
+  const tax=Math.max(1,Math.floor(playerState.spent*0.3));
+  const refund=playerState.spent-tax;
+  playerState.mask=1n<<rootIdx;
+  playerState.points=refund;
+  playerState.spent=0;
+  selectedId=null;
+  document.getElementById("respec-modal").classList.remove("open");
+  updateDetailPanel(null);
+  updateHeader(); updateMinimap();
+  notify(`Tree reset · −${tax} pts tax`,"#f97316");
+}
+
+function newSeed() {
+  TREE_SEED = (Math.random()*0xFFFFFFFF)|0;
+  tree=generateTree(TREE_SEED);
+  rootNode=tree.nodes.find(n=>n.isRoot);
+  rootIdx=BigInt(rootNode.col*ROWS+rootNode.row);
+  playerState={ mask:1n<<rootIdx, points:playerState.points, spent:0 };
+  selectedId=null;
+  computeLayout();
+  updateDetailPanel(null);
+  updateHeader(); updateMinimap();
+  document.getElementById("seed-strip").textContent=`SEED: 0x${(TREE_SEED>>>0).toString(16).toUpperCase().padStart(8,"0")}`;
+  notify(`New tree — seed 0x${(TREE_SEED>>>0).toString(16).toUpperCase()}`,"#a78bfa");
+}
+
+// ═══════════════════════════════════════════════════════
+//  EVENT WIRING
+// ═══════════════════════════════════════════════════════
+
+const canvas=document.getElementById("tree-canvas");
+
+canvas.addEventListener("click",e=>{
+  const node=hitTest(e.clientX,e.clientY);
+  if (!node) { updateDetailPanel(null); return; }
+  if (selectedId===node.id) {
+    // second click = unlock attempt
+    const {ok,reason}=canUnlock(node);
+    if (!ok&&!isUnlocked(node)) { notify(reason,"#f87171"); return; }
+    if (ok) doUnlock(node);
+  } else {
+    selectedId=node.id;
+    updateDetailPanel(node);
+  }
+});
+
+canvas.addEventListener("mousemove",e=>{
+  const node=hitTest(e.clientX,e.clientY);
+  hoveredId=node?node.id:null;
+  canvas.style.cursor=node?"pointer":"default";
+});
+
+canvas.addEventListener("mouseleave",()=>{ hoveredId=null; });
+
+document.getElementById("btn-grant").addEventListener("click",()=>{
+  playerState.points+=10;
+  updateHeader();
+  notify("+10 Skill Points","#ffd700");
+  if (selectedId) updateDetailPanel(tree.nodeMap.get(selectedId));
+});
+
+document.getElementById("btn-respec").addEventListener("click",()=>{
+  document.getElementById("respec-tax-amt").textContent=Math.max(1,Math.floor(playerState.spent*0.3));
+  document.getElementById("respec-modal").classList.add("open");
+});
+
+document.getElementById("btn-respec-confirm").addEventListener("click",doRespec);
+document.getElementById("btn-respec-cancel").addEventListener("click",()=>{
+  document.getElementById("respec-modal").classList.remove("open");
+});
+
+document.getElementById("btn-seed").addEventListener("click",newSeed);
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS RESIZE + RAF LOOP
+// ═══════════════════════════════════════════════════════
+
+function resizeCanvas() {
+  const wrap=document.getElementById("canvas-wrap");
+  canvas.width=wrap.clientWidth;
+  canvas.height=wrap.clientHeight;
+  computeLayout();
+}
+
+window.addEventListener("resize",()=>{ resizeCanvas(); });
+resizeCanvas();
+
+let last=performance.now();
+function loop(now) {
+  animTime+=now-last; last=now;
+  const ctx=canvas.getContext("2d");
+  render(ctx);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+
+document.getElementById("seed-strip").textContent=`SEED: 0x${(TREE_SEED>>>0).toString(16).toUpperCase().padStart(8,"0")}`;
+updateHeader();
+updateMinimap();
+</script>
+</body>
+</html>
